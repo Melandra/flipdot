@@ -1,9 +1,16 @@
-import React, {useEffect, useState, useReducer} from 'react';
+import React, {useEffect, useState, useReducer, useCallback} from 'react';
 import {Characteristic, Device} from 'react-native-ble-plx';
 import styled from 'styled-components/native';
 import {Buffer} from 'buffer';
 import {Input} from './Components/Input';
 import {Button} from 'react-native';
+import {
+  bleConnectionReducer,
+  bleConnectionInitialState,
+  BleConnectionTypes,
+} from './reducers/BleConnection';
+import {ErrorToast} from './Components/ErrorToast';
+import {Loader} from './Components/Loader';
 
 const SERVICE_ID = '49d0ea01-5b80-4056-aee7-a23ea1d1bec6';
 const CHARACTERISTIC_ID = '49d0ea02-5b80-4056-aee7-a23ea1d1bec6';
@@ -60,6 +67,11 @@ type Props = {
   device?: Device;
 };
 export const InputPage: React.VFC<Props> = ({device}: Props) => {
+  const [bleConnection, dispatchBleConnection] = useReducer(
+    bleConnectionReducer,
+    bleConnectionInitialState,
+  );
+
   const [oldPassword, setOldPassword] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [value1, setValue1] = useState<string>('');
@@ -70,11 +82,49 @@ export const InputPage: React.VFC<Props> = ({device}: Props) => {
     initialCheckedState,
   );
 
+  const connectToDevice = useCallback((dev: Device) => {
+    dev
+      .isConnected()
+      .then((isConnected: boolean) => {
+        if (!isConnected) {
+          dispatchBleConnection({
+            type: BleConnectionTypes.CONNECTING,
+            payload: true,
+          });
+          dev
+            .connect({requestMTU: 187})
+            .then(() => {
+              dispatchBleConnection({
+                type: BleConnectionTypes.CONNECTING,
+                payload: false,
+              });
+            })
+            .catch(exception => {
+              console.log(exception);
+            });
+        } else {
+          dispatchBleConnection({
+            type: BleConnectionTypes.CONNECTING,
+            payload: false,
+          });
+        }
+      })
+      .catch(exception => {
+        dispatchBleConnection({
+          type: BleConnectionTypes.ERROR,
+          payload: new Error(exception.toString()),
+        });
+      });
+  }, []);
+
   useEffect(() => {
+    if (device) {
+      connectToDevice(device);
+    }
     return () => {
       device?.cancelConnection();
     };
-  }, [device]);
+  }, [connectToDevice, device]);
 
   const writeToDeviceCharacteristic = (
     message: string,
@@ -134,6 +184,10 @@ export const InputPage: React.VFC<Props> = ({device}: Props) => {
 
   return (
     <StyledContainer>
+      {bleConnection.connecting && <Loader />}
+      {bleConnection.error && (
+        <ErrorToast message={bleConnection.error.message} />
+      )}
       <Input
         label="Alter Pin (4 Buchstaben)"
         value={oldPassword}

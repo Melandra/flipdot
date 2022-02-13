@@ -43,8 +43,8 @@ const App = () => {
           {props => (
             <DevicesPage
               {...props}
-              setSelectedDevice={setSelectedDevice}
               bleManager={bleManager}
+              setSelectedDevice={setSelectedDevice}
             />
           )}
         </Stack.Screen>

@@ -1,10 +1,15 @@
-import React, {useEffect, useState, useCallback} from 'react';
+import React, {useEffect, useCallback, useReducer} from 'react';
 import {PermissionsAndroid} from 'react-native';
 import {ListItem} from 'react-native-elements';
 import {BleManager, Device, BleError} from 'react-native-ble-plx';
 import styled from 'styled-components/native';
 import {ErrorToast} from './Components/ErrorToast';
 import {Loader} from './Components/Loader';
+import {
+  bleScanningInitialState,
+  bleScanningReducer,
+  BleScanningTypes,
+} from './reducers/BleScanning';
 
 const ListContainer = styled.View`
   display: flex;
@@ -23,21 +28,18 @@ const StyledListItemTitle = styled(ListItem.Title)`
 
 type Props = {
   bleManager: BleManager;
-  navigation: any;
   setSelectedDevice: (device: Device) => void;
+  navigation: any;
 };
 export const DevicesPage: React.FC<Props> = ({
   bleManager,
-  navigation,
   setSelectedDevice,
+  navigation,
 }: Props) => {
-  const [scanning, setScanning] = useState<boolean>(false);
-  const [devices, setDevices] = useState<Map<string, Device>>(
-    new Map<string, Device>(),
+  const [bleScanning, dispatchBleScanning] = useReducer(
+    bleScanningReducer,
+    bleScanningInitialState,
   );
-  const [scanningError, setScanningError] = useState<BleError | null>(null);
-  const [connectionError, setConnectionError] = useState<string | undefined>();
-  const [connecting, setConnecting] = useState<boolean>(false);
 
   const askForPermissions = async () =>
     await PermissionsAndroid.request(
@@ -55,49 +57,40 @@ export const DevicesPage: React.FC<Props> = ({
     askForPermissions();
   });
 
-  const connectToDevice = (device: Device) => {
-    device
-      .isConnected()
-      .then((isConnected: boolean) => {
-        if (!isConnected) {
-          setConnecting(true);
-          device
-            .connect({requestMTU: 187})
-            .then(() => {
-              setConnecting(false);
-              setSelectedDevice(device);
-              navigation.navigate('input');
-            })
-            .catch(exception => {
-              console.log(exception);
-            });
-        } else {
-          setConnecting(false);
-          setSelectedDevice(device);
-          navigation.navigate('input');
-        }
-      })
-      .catch(exception => {
-        setConnectionError(exception.toString);
-      });
-  };
-
   const scanDevices = useCallback(() => {
+    const devices = bleScanning.devices;
     bleManager.startDeviceScan(
       null,
       null,
       (error: BleError | null, device: Device | null) => {
-        setScanning(true);
+        dispatchBleScanning({type: BleScanningTypes.SCANNING, payload: true});
+        dispatchBleScanning({
+          type: BleScanningTypes.ERROR,
+          payload: null,
+        });
         if (error) {
-          setScanning(false);
-          setScanningError(error);
+          dispatchBleScanning({
+            type: BleScanningTypes.SCANNING,
+            payload: false,
+          });
+          dispatchBleScanning({
+            type: BleScanningTypes.ERROR,
+            payload: new Error(error.toString()),
+          });
           return;
         }
         if (device) {
           if (device.name?.includes('FlipDotDisplay')) {
             if (devices.has(device.id)) {
               bleManager.stopDeviceScan();
-              setScanning(false);
+              dispatchBleScanning({
+                type: BleScanningTypes.SCANNING,
+                payload: false,
+              });
+              dispatchBleScanning({
+                type: BleScanningTypes.ERROR,
+                payload: null,
+              });
               return;
             }
             devices.set(device.id, device);
@@ -105,7 +98,7 @@ export const DevicesPage: React.FC<Props> = ({
         }
       },
     );
-  }, [bleManager, devices]);
+  }, [bleManager, bleScanning.devices, dispatchBleScanning]);
 
   useEffect(() => {
     const subscription = bleManager.onStateChange((state: any) => {
@@ -117,19 +110,23 @@ export const DevicesPage: React.FC<Props> = ({
     return () => subscription.remove();
   }, [bleManager, scanDevices]);
 
+  const goToInputPage = (device: Device) => {
+    setSelectedDevice(device);
+    navigation.navigate('input');
+  };
+
   return (
     <ListContainer>
-      {scanning && <Loader />}
-      {scanningError !== null && (
+      {bleScanning.scanning && <Loader />}
+      {bleScanning.error !== null && (
         <ErrorToast message="Die Displays konnten nicht gefunden werden" />
       )}
-      {connectionError && <ErrorToast message={connectionError} />}
-      {Array.from(devices.values()).map((device: Device) => {
+      {Array.from(bleScanning.devices.values()).map((device: Device) => {
         return (
           <StyledListItem
             key={device.id}
             bottomDivider
-            onPress={() => connectToDevice(device)}>
+            onPress={() => goToInputPage(device)}>
             <ListItem.Content>
               <StyledListItemTitle>{device.name}</StyledListItemTitle>
             </ListItem.Content>
