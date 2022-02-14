@@ -58,6 +58,7 @@ export const InputPage: React.VFC<Props> = ({
     checkedReducer,
     initialCheckedState,
   );
+  const [sendError, setSendError] = useState<Error | null>(null);
 
   const connectToDevice = useCallback((dev: Device) => {
     dev
@@ -77,7 +78,14 @@ export const InputPage: React.VFC<Props> = ({
               });
             })
             .catch(exception => {
-              console.log(exception);
+              dispatchBleConnection({
+                type: BleConnectionTypes.CONNECTING,
+                payload: false,
+              });
+              dispatchBleConnection({
+                type: BleConnectionTypes.ERROR,
+                payload: new Error(exception.toString()),
+              });
             });
         } else {
           dispatchBleConnection({
@@ -115,18 +123,14 @@ export const InputPage: React.VFC<Props> = ({
       device
         .discoverAllServicesAndCharacteristics()
         .then(deviceWithServices => {
-          deviceWithServices
-            .writeCharacteristicWithResponseForService(
-              SERVICE_ID,
-              CHARACTERISTIC_ID,
-              payload,
-            )
-            .then((characteristic: Characteristic) => {
-              console.log(characteristic);
-            });
+          deviceWithServices.writeCharacteristicWithResponseForService(
+            SERVICE_ID,
+            CHARACTERISTIC_ID,
+            payload,
+          );
         })
         .catch(exception => {
-          console.log(exception);
+          setSendError(new Error(exception.toString()));
         });
     }
   };
@@ -165,6 +169,7 @@ export const InputPage: React.VFC<Props> = ({
       {bleConnection.error && (
         <ErrorToast message={bleConnection.error.message} />
       )}
+      {sendError && <ErrorToast message={sendError.message} />}
       <Input
         label="Alter Pin (4 Buchstaben)"
         value={inputsState.oldPassword}
