@@ -1,5 +1,11 @@
-import React, {useEffect, useState, useReducer, useCallback} from 'react';
-import {Characteristic, Device} from 'react-native-ble-plx';
+import React, {
+  useEffect,
+  useReducer,
+  useCallback,
+  Dispatch,
+  useState,
+} from 'react';
+import {Device} from 'react-native-ble-plx';
 import styled from 'styled-components/native';
 import {Buffer} from 'buffer';
 import {Input} from './Components/Input';
@@ -11,6 +17,7 @@ import {
 } from './reducers/BleConnection';
 import {ErrorToast} from './Components/ErrorToast';
 import {Loader} from './Components/Loader';
+import {InputsAction, InputsState, InputsTypes} from './reducers/Inputs';
 
 const SERVICE_ID = '49d0ea01-5b80-4056-aee7-a23ea1d1bec6';
 const CHARACTERISTIC_ID = '49d0ea02-5b80-4056-aee7-a23ea1d1bec6';
@@ -64,19 +71,19 @@ type CheckedAction = {
 };
 
 type Props = {
+  inputsState: InputsState;
+  dispatchInputs: Dispatch<InputsAction>;
   device?: Device;
 };
-export const InputPage: React.VFC<Props> = ({device}: Props) => {
+export const InputPage: React.VFC<Props> = ({
+  inputsState,
+  dispatchInputs,
+  device,
+}: Props) => {
   const [bleConnection, dispatchBleConnection] = useReducer(
     bleConnectionReducer,
     bleConnectionInitialState,
   );
-
-  const [oldPassword, setOldPassword] = useState<string>('');
-  const [newPassword, setNewPassword] = useState<string>('');
-  const [value1, setValue1] = useState<string>('');
-  const [value2, setValue2] = useState<string>('');
-  const [value3, setValue3] = useState<string>('');
   const [checked, dispatchChecked] = useReducer<CheckedReducer>(
     checkedReducer,
     initialCheckedState,
@@ -133,7 +140,7 @@ export const InputPage: React.VFC<Props> = ({device}: Props) => {
   ) => {
     if (device) {
       const payload = Buffer.from(
-        `0${oldPassword}${newPassword}${total}${index}0${message}`,
+        `0${inputsState.oldPassword}${inputsState.newPassword}${total}${index}0${message}`,
       ).toString('base64');
       device
         .discoverAllServicesAndCharacteristics()
@@ -160,13 +167,13 @@ export const InputPage: React.VFC<Props> = ({device}: Props) => {
       if (value) {
         switch (key) {
           case 'value1':
-            messages.push(value1);
+            messages.push(inputsState.value1);
             break;
           case 'value2':
-            messages.push(value2);
+            messages.push(inputsState.value2);
             break;
           case 'value3':
-            messages.push(value3);
+            messages.push(inputsState.value3);
             break;
         }
       }
@@ -190,20 +197,26 @@ export const InputPage: React.VFC<Props> = ({device}: Props) => {
       )}
       <Input
         label="Alter Pin (4 Buchstaben)"
-        value={oldPassword}
-        setValue={setOldPassword}
+        value={inputsState.oldPassword}
+        setValue={(value: string) => {
+          dispatchInputs({type: InputsTypes.OLD_PASSWORD, payload: value});
+        }}
         showCheckbox={false}
       />
       <Input
         label="Neuer Pin (4 Buchstaben)"
-        value={newPassword}
-        setValue={setNewPassword}
+        value={inputsState.newPassword}
+        setValue={(value: string) => {
+          dispatchInputs({type: InputsTypes.NEW_PASSWORD, payload: value});
+        }}
         showCheckbox={false}
       />
       <Input
         label="Eingabe 1"
-        value={value1}
-        setValue={setValue1}
+        value={inputsState.value1}
+        setValue={(value: string) => {
+          dispatchInputs({type: InputsTypes.VALUE1, payload: value});
+        }}
         showCheckbox={true}
         checkboxValue={checked.value1}
         onCheckChange={() => {
@@ -215,8 +228,10 @@ export const InputPage: React.VFC<Props> = ({device}: Props) => {
       />
       <Input
         label="Eingabe 2"
-        value={value2}
-        setValue={setValue2}
+        value={inputsState.value2}
+        setValue={(value: string) => {
+          dispatchInputs({type: InputsTypes.VALUE2, payload: value});
+        }}
         showCheckbox={true}
         checkboxValue={checked.value2}
         onCheckChange={() => {
@@ -228,8 +243,10 @@ export const InputPage: React.VFC<Props> = ({device}: Props) => {
       />
       <Input
         label="Eingabe 3"
-        value={value3}
-        setValue={setValue3}
+        value={inputsState.value3}
+        setValue={(value: string) => {
+          dispatchInputs({type: InputsTypes.VALUE3, payload: value});
+        }}
         showCheckbox={true}
         checkboxValue={checked.value3}
         onCheckChange={() => {

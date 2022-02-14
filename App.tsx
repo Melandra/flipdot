@@ -8,7 +8,7 @@
  * @format
  */
 
-import React, {useState} from 'react';
+import React, {useReducer, useState} from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -23,12 +23,17 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {DevicesPage} from './DevicesPage';
 import {BleManager, Device} from 'react-native-ble-plx';
 import {InputPage} from './InputPage';
+import {inputsInitialState, inputsReducer} from './reducers/Inputs';
 
 const Stack = createNativeStackNavigator();
 
 const bleManager: BleManager = new BleManager();
 
 const App = () => {
+  const [inputs, disptachInputs] = useReducer(
+    inputsReducer,
+    inputsInitialState,
+  );
   const [selectedDevice, setSelectedDevice] = useState<Device | undefined>();
   const isDarkMode = useColorScheme() === 'dark';
 
@@ -57,7 +62,12 @@ const App = () => {
               <ScrollView
                 contentInsetAdjustmentBehavior="automatic"
                 style={backgroundStyle}>
-                <InputPage {...props} device={selectedDevice} />
+                <InputPage
+                  {...props}
+                  inputsState={inputs}
+                  dispatchInputs={disptachInputs}
+                  device={selectedDevice}
+                />
               </ScrollView>
             </SafeAreaView>
           )}
