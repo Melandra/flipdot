@@ -18,6 +18,11 @@ import {
 import {ErrorToast} from './Components/ErrorToast';
 import {Loader} from './Components/Loader';
 import {InputsAction, InputsState, InputsTypes} from './reducers/Inputs';
+import {
+  checkedReducer,
+  CheckedType,
+  initialCheckedState,
+} from './reducers/Checked';
 
 const SERVICE_ID = '49d0ea01-5b80-4056-aee7-a23ea1d1bec6';
 const CHARACTERISTIC_ID = '49d0ea02-5b80-4056-aee7-a23ea1d1bec6';
@@ -35,41 +40,6 @@ const ButtonContainer = styled.TouchableOpacity`
   overflow: hidden;
 `;
 
-type CheckedReducer = (state: Checked, action: CheckedAction) => Checked;
-const checkedReducer: CheckedReducer = (
-  state: Checked,
-  action: CheckedAction,
-) => {
-  switch (action.type) {
-    case CheckedType.V1:
-      return {...state, value1: action.payload};
-    case CheckedType.V2:
-      return {...state, value2: action.payload};
-    case CheckedType.V3:
-      return {...state, value3: action.payload};
-  }
-};
-const initialCheckedState = {
-  value1: false,
-  value2: false,
-  value3: false,
-};
-
-type Checked = {
-  [key: string]: boolean;
-};
-
-enum CheckedType {
-  'V1' = 'value1',
-  'V2' = 'value2',
-  'V3' = 'value3',
-}
-
-type CheckedAction = {
-  type: CheckedType;
-  payload: boolean;
-};
-
 type Props = {
   inputsState: InputsState;
   dispatchInputs: Dispatch<InputsAction>;
@@ -84,7 +54,7 @@ export const InputPage: React.VFC<Props> = ({
     bleConnectionReducer,
     bleConnectionInitialState,
   );
-  const [checked, dispatchChecked] = useReducer<CheckedReducer>(
+  const [checked, dispatchChecked] = useReducer(
     checkedReducer,
     initialCheckedState,
   );
